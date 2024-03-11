@@ -1,4 +1,4 @@
-#AIzaSyCs6dodjKFWh2smPMUs9FkiGPU0FxyUR44
+
 from googleapiclient.discovery import build
 from pytube import YouTube
 from moviepy.editor import *
@@ -75,10 +75,9 @@ def filter_and_download_videos(api_key, query, save_path, max_downloads=5):
             downloads_count += 1
 
 # 사용 예
-api_key = 'AIzaSyCs6dodjKFWh2smPMUs9FkiGPU0FxyUR44'  # API 키
+api_key = ''  # API 키
 query = 'music'  # 검색 쿼리
-save_path = 'C:\\Users\\SCHOOL\\Desktop\\music'  # 저장 경로
+save_path = r'C:\Users\오상윤\Desktop\티스토리 용'  # 저장 경로
 filter_and_download_videos(api_key, query, save_path)
-
 
 
