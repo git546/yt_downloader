@@ -12,7 +12,7 @@ chrome_options = Options()
 driver = webdriver.Chrome(options=chrome_options)
 
 # 유튜브 아티스트 채널로 이동
-driver.get('https://www.youtube.com/channel/UCs-QBT4qkj_YiQw1ZntDO3g')
+driver.get('https://www.youtube.com/@LESSERAFIM_official/releases')
 
 # "발표곡" 섹션을 찾아 클릭 이벤트 시뮬레이션
 time.sleep(5) # 페이지 로딩 대기
