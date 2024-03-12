@@ -77,7 +77,7 @@ def filter_and_download_videos(api_key, query, save_path, max_downloads=5):
 # 사용 예
 api_key = ''  # API 키
 query = 'music'  # 검색 쿼리
-save_path = r'C:\Users\오상윤\Desktop\티스토리 용'  # 저장 경로
+save_path = r'C:\Users\\Desktop\'  # 저장 경로
 filter_and_download_videos(api_key, query, save_path)
 
 
