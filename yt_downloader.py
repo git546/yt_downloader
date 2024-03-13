@@ -1,83 +1,81 @@
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import threading
+import ch_finder  # ch_finder.py 모듈을 import 합니다.
 
-from googleapiclient.discovery import build
-from pytube import YouTube
-from moviepy.editor import *
-import html
-import os
+# YouTube API 키를 여기에 입력하세요.
+API_KEY = 'AIzaSyCs6dodjKFWh2smPMUs9FkiGPU0FxyUR44'
 
-def initialize_youtube_api(api_key):
-    return build('youtube', 'v3', developerKey=api_key)
+def on_entry_click(event):
+    """Entry 위젯 클릭 시 실행되는 함수"""
+    if entry_artist_name.get() == '가수/아티스트 입력':
+        entry_artist_name.delete(0, "end")  # 텍스트 삭제
+        entry_artist_name.insert(0, '')  # 빈 텍스트 삽입
+        entry_artist_name.config(fg='black')
 
-def search_videos(youtube, query, max_results=50):
-    request = youtube.search().list(q=query, part='snippet', type='video', maxResults=max_results)
-    return request.execute()
+def on_focusout(event):
+    """Entry 위젯이 포커스를 잃었을 때 실행되는 함수"""
+    if entry_artist_name.get() == '':
+        entry_artist_name.insert(0, '가수/아티스트 입력')
+        entry_artist_name.config(fg='grey')
 
-def get_video_category(youtube, video_id):
-    request = youtube.videos().list(part='snippet', id=video_id)
-    response = request.execute()
-    if response['items']:
-        return response['items'][0]['snippet']['categoryId']
+def async_download(artist_name):
+    youtube = ch_finder.initialize_youtube_api(API_KEY)
+    channel_id = ch_finder.get_channel_id(youtube, artist_name)
+    
+    if channel_id:
+        # 여기서는 채널 ID를 표시하기만 합니다. 실제 다운로드 로직이 필요한 경우 추가해야 합니다.
+        text = f"찾은 채널 ID: {channel_id}"
     else:
-        return None
- 
-def existing_files(save_path):
-    return {f.replace('.mp3', '') for f in os.listdir(save_path) if f.endswith('.mp3')}
+        text = "채널을 찾을 수 없습니다."
+    
+    # GUI 요소에 접근하기 위해 메인 스레드에서 실행되어야 합니다.
+    label_status.config(text=text)
+    entry_artist_name.config(state=tk.NORMAL)
+    button_download.config(state=tk.NORMAL)
 
-def download_video_as_mp3(youtube, video, save_path):
-    video_id = video['id']['videoId']
-    # HTML 엔티티를 해당 문자로 변환
-    video_title = html.unescape(video['snippet']['title']).replace('/', '-')
-    # 파일명에서 특수 문자 제거 또는 변환 로직 추가
-    video_title = video_title.replace('&#39;', "'")
-
-    # 기존 파일 확인 로직 추가
-    save_file_path = os.path.join(save_path, f"{video_title}.mp3")
-    if os.path.exists(save_file_path):
-        print(f"File already exists: {save_file_path}")
+def download():
+    artist_name = entry_artist_name.get()
+    if not artist_name or artist_name == "가수/아티스트 입력":
+        messagebox.showinfo("알림", "가수/아티스트 이름을 입력해주세요.")
         return
-        video_id = video['id']['videoId']
-        video_title = video['snippet']['title'].replace('/', '-')
-        save_file_path = os.path.join(save_path, f"{video_title}.mp3")
     
-    try:
-        yt = YouTube(f"https://www.youtube.com/watch?v={video_id}")
-        stream = yt.streams.filter(only_audio=True).first()
-        download_path = stream.download(output_path=save_path, filename=f"{video_title}.mp4")
-        
-        clip = AudioFileClip(download_path)
-        clip.write_audiofile(save_file_path)
-        clip.close()
-        os.remove(download_path)  # Remove the downloaded .mp4 file
-        
-        print(f"Downloaded and converted to MP3: {save_file_path}")
-    except Exception as e:
-        print(f"Failed to download {video_title}: {e}")
-
-def filter_and_download_videos(api_key, query, save_path, max_downloads=5):
-    youtube = initialize_youtube_api(api_key)
-    search_response = search_videos(youtube, query)
-    videos = search_response.get('items', [])
-    existing_titles = existing_files(save_path)
+    entry_artist_name.config(state=tk.DISABLED)
+    button_download.config(state=tk.DISABLED)
+    label_status.config(text="검색 중...")
     
-    downloads_count = 0
-    for video in videos:
-        if downloads_count >= max_downloads:
-            break
-        
-        video_title = video['snippet']['title']
-        if video_title in existing_titles:
-            continue  # Skip existing files
-        
-        video_id = video['id']['videoId']
-        category_id = get_video_category(youtube, video_id)
-        if category_id == '10':  # '음악' 카테고리
-            download_video_as_mp3(youtube, video, save_path)
-            downloads_count += 1
+    # 비동기적으로 YouTube 채널 ID를 검색합니다.
+    threading.Thread(target=async_download, args=(artist_name,)).start()
 
-# 사용 예
-api_key = ''  # API 키
-query = 'music'  # 검색 쿼리
-save_path = r'C:\Users\\Desktop\'  # 저장 경로
-filter_and_download_videos(api_key, query, save_path)
+def open_folder():
+    pass  # 폴더 열기 로직
 
+def set_download_path():
+    folder_selected = filedialog.askdirectory()
+    if folder_selected:
+        label_status.config(text=f"다운로드 경로: {folder_selected}")
+    else:
+        label_status.config(text="다운로드 경로가 지정되지 않았습니다.")
 
+root = tk.Tk()
+root.title("YouTube Channel Finder")
+
+entry_artist_name = tk.Entry(root, fg='grey', width=50)
+entry_artist_name.pack(pady=10)
+entry_artist_name.insert(0, '가수/아티스트 입력')
+entry_artist_name.bind('<FocusIn>', on_entry_click)
+entry_artist_name.bind('<FocusOut>', on_focusout)
+
+label_status = tk.Label(root, text="")
+label_status.pack(pady=10)
+
+button_download = tk.Button(root, text="채널 검색", command=download)
+button_download.pack(pady=5)
+
+button_open = tk.Button(root, text="열기", command=open_folder)
+button_open.pack(pady=5)
+
+button_set_path = tk.Button(root, text="경로 지정", command=set_download_path)
+button_set_path.pack(pady=5)
+
+root.mainloop()

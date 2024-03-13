@@ -43,11 +43,13 @@ def get_youtube_playlist_links(channel_url):
 
     return found_hrefs
 
-channel_name = 'https://www.youtube.com/@LESSERAFIM_official'
-# 사용 예시
-channel_url = channel_name +'/releases'
-print(channel_url)
-playlist_links = get_youtube_playlist_links(channel_url)
+def get_lists(channel_name):
+    channel_name = 'https://www.youtube.com/@LESSERAFIM_official'
+    channel_url = channel_name +'/releases'
+    print(channel_url)
+    playlist_links = get_youtube_playlist_links(channel_url)
 
-for link in playlist_links:
-    print(link)
+    for link in playlist_links:
+        print(link)
+        
+    return playlist_links
