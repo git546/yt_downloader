@@ -1,8 +1,10 @@
+import asyncio
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import threading
 import ch_finder  # ch_finder.py 모듈을 import 합니다.
 import list_maker # list_make.py 모듈을 import 합니다.
+import time
 
 # YouTube API 키를 여기에 입력하세요.
 API_KEY = 'AIzaSyCs6dodjKFWh2smPMUs9FkiGPU0FxyUR44'
@@ -10,6 +12,10 @@ API_KEY = 'AIzaSyCs6dodjKFWh2smPMUs9FkiGPU0FxyUR44'
 # 전역 변수로 검색된 채널의 이름과 ID를 저장
 channel_name = ""
 channel_id = ""
+
+async def get_links(channel_id):
+    playlist_links = await list_maker.get_lists_async(channel_id)
+    return playlist_links
 
 def on_entry_click(event):
     global channel_name, channel_id
@@ -61,7 +67,7 @@ def download_videos():
         messagebox.showinfo("알림", "먼저 채널을 검색해주세요.")
         return
     # 여기에 채널 비디오 다운로드 로직 구현
-    playlist_list = list_maker.get_lists(channel_id)
+    playlist_list = asyncio.run(get_links)
     print(playlist_list)
     messagebox.showinfo("알림", f"'{channel_name}' 채널의 비디오를 다운로드합니다.")
 
