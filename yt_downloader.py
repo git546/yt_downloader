@@ -4,7 +4,7 @@ import threading
 import ch_finder  # ch_finder.py 모듈을 import 합니다.
 
 # YouTube API 키를 여기에 입력하세요.
-API_KEY = 'AIzaSyCs6dodjKFWh2smPMUs9FkiGPU0FxyUR44'
+API_KEY = 'API'
 
 def on_entry_click(event):
     """Entry 위젯 클릭 시 실행되는 함수"""
