@@ -49,10 +49,6 @@ def get_lists(channel_id):
     #channel_name = 'https://www.youtube.com/@LESSERAFIM_official'
     base_url = "https://www.youtube.com/channel/"
     channel_url = base_url + channel_id +'/releases'
-    print(channel_url)
     playlist_links = get_youtube_playlist_links(channel_url)
-
-    for link in playlist_links:
-        print(link)
         
     return playlist_links
