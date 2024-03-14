@@ -1,108 +1,70 @@
-import asyncio
-import tkinter as tk
-from tkinter import filedialog, messagebox
-import threading
-import ch_finder  # ch_finder.py 모듈을 import 합니다.
-import list_maker # list_make.py 모듈을 import 합니다.
-import time
+from googleapiclient.discovery import build
+from selenium import webdriver
+from bs4 import BeautifulSoup
+from selenium.webdriver.chrome.options import Options
+import time, subprocess
+import os
 
-# YouTube API 키를 여기에 입력하세요.
-API_KEY = 'AIzaSyCs6dodjKFWh2smPMUs9FkiGPU0FxyUR44'
+# YouTube Data API 초기화 및 채널 ID 가져오기
+def initialize_youtube_api(api_key):
+    return build('youtube', 'v3', developerKey=api_key)
 
-# 전역 변수로 검색된 채널의 이름과 ID를 저장
-channel_name = ""
-channel_id = ""
+def get_channel_id(youtube, artist_name):
+    response = youtube.search().list(q=artist_name, part='snippet', type='channel', maxResults=1).execute()
+    if response['items']:
+        return response['items'][0]['id']['channelId']
+    return None
 
-async def get_links(channel_id):
-    playlist_links = await list_maker.get_lists_async(channel_id)
-    return playlist_links
+# Selenium을 사용하여 채널의 재생목록 링크 가져오기
+def get_youtube_playlist_links(channel_url):
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    driver = webdriver.Chrome(options=chrome_options)
+    driver.implicitly_wait(10)
+    driver.get(channel_url)
+    time.sleep(5)  # 동적 콘텐츠 로드를 위한 대기
+    soup = BeautifulSoup(driver.page_source, 'html.parser')
+    driver.quit()
 
-def on_entry_click(event):
-    global channel_name, channel_id
-    if entry_artist_name.get() == '가수/아티스트 입력':
-        entry_artist_name.delete(0, "end")
-        entry_artist_name.insert(0, '')
-        entry_artist_name.config(fg='black')
-    channel_name = ""
-    channel_id = ""
+    found_hrefs = set()
+    for element in soup.find_all(class_='style-scope ytd-rich-grid-media'):
+        a_tag = element.find_parent('a')
+        if a_tag and (href := a_tag.get('href')):
+            full_url = f"https://www.youtube.com{href}"
+            found_hrefs.add(full_url)
+    return found_hrefs
 
-def on_focusout(event):
-    if entry_artist_name.get() == '':
-        entry_artist_name.insert(0, '가수/아티스트 입력')
-        entry_artist_name.config(fg='grey')
+# youtube-dl을 사용하여 재생목록의 비디오 다운로드
+def download_playlist_videos(playlist_urls, download_path):
+    # 저장될 파일 경로 및 파일명 형식 지정
+    for url in playlist_urls:
+        output_template = os.path.join(download_path, '%(title)s.%(ext)s')
+        # youtube-dl 명령어 구성
+        command = [
+            'youtube-dl',
+            '--extract-audio',  # 오디오 추출
+            '--audio-format', 'mp3',  # 오디오 포맷을 mp3로 지정
+            '--output', output_template,  # 출력 파일 경로 및 이름 형식 지정
+            #youtube_url  # 다운로드할 YouTube 비디오 URL
+        ]
+        
+        subprocess.run([
+            'youtube-dl',
+            '-o', f'{download_path}/%(title)s.%(ext)s',
+            url
+        ])
 
-def async_search_channel(artist_name):
-    global channel_name, channel_id
-    youtube = ch_finder.initialize_youtube_api(API_KEY)
-    channel_info = ch_finder.get_channel_id(youtube, artist_name)
+if __name__ == "__main__":
+    API_KEY = 'AIzaSyCs6dodjKFWh2smPMUs9FkiGPU0FxyUR44'
+    artist_name = 'GIDLE'
+    download_path = r'C:\Users\SCHOOL\Desktop\music'
     
-    if channel_info:
-        channel_id = channel_info
-        # 검색된 채널의 이름도 얻기 위해 추가 정보 요청
-        channel_details = youtube.channels().list(id=channel_id, part='snippet').execute()
-        channel_name = channel_details['items'][0]['snippet']['title']
-        text = f"찾은 채널: {channel_name}"
+    youtube = initialize_youtube_api(API_KEY)
+    channel_id = get_channel_id(youtube, artist_name)
+    if channel_id:
+        channel_url = f"https://www.youtube.com/channel/{channel_id}/releases"
+        playlist_urls = get_youtube_playlist_links(channel_url)
+        download_playlist_videos(playlist_urls, download_path)
+        print(f"Download completed for {artist_name}")
     else:
-        text = "채널을 찾을 수 없습니다."
-        channel_id = ""
-    
-    label_status.config(text=text)
-    entry_artist_name.config(state=tk.NORMAL)
-    button_search.config(state=tk.NORMAL)
-
-def search_channel():
-    artist_name = entry_artist_name.get()
-    if not artist_name or artist_name == "가수/아티스트 입력":
-        messagebox.showinfo("알림", "가수/아티스트 이름을 입력해주세요.")
-        return
-    
-    entry_artist_name.config(state=tk.DISABLED)
-    button_search.config(state=tk.DISABLED)
-    label_status.config(text="검색 중...")
-    
-    threading.Thread(target=async_search_channel, args=(artist_name,)).start()
-
-def download_videos():
-    if not channel_id:
-        messagebox.showinfo("알림", "먼저 채널을 검색해주세요.")
-        return
-    # 여기에 채널 비디오 다운로드 로직 구현
-    playlist_list = asyncio.run(get_links)
-    print(playlist_list)
-    messagebox.showinfo("알림", f"'{channel_name}' 채널의 비디오를 다운로드합니다.")
-
-def open_folder():
-    pass
-
-def set_download_path():
-    folder_selected = filedialog.askdirectory()
-    if folder_selected:
-        label_status.config(text=f"다운로드 경로: {folder_selected}")
-    else:
-        label_status.config(text="다운로드 경로가 지정되지 않았습니다.")
-
-root = tk.Tk()
-root.title("YouTube Channel Finder")
-
-entry_artist_name = tk.Entry(root, fg='grey', width=50)
-entry_artist_name.pack(pady=10)
-entry_artist_name.insert(0, '가수/아티스트 입력')
-entry_artist_name.bind('<FocusIn>', on_entry_click)
-entry_artist_name.bind('<FocusOut>', on_focusout)
-
-label_status = tk.Label(root, text="")
-label_status.pack(pady=10)
-
-button_search = tk.Button(root, text="채널 검색", command=search_channel)
-button_search.pack(pady=5)
-
-button_download = tk.Button(root, text="비디오 다운로드", command=download_videos)
-button_download.pack(pady=5)
-
-button_open = tk.Button(root, text="열기", command=open_folder)
-button_open.pack(pady=5)
-
-button_set_path = tk.Button(root, text="경로 지정", command=set_download_path)
-button_set_path.pack(pady=5)
-
-root.mainloop()
+        print("Channel not found.")
