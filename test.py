@@ -11,6 +11,8 @@ def get_youtube_playlist_links(channel_url):
     chrome_options.add_argument("--headless")
     driver = webdriver.Chrome(options=chrome_options)
 
+    #암시적 대기
+    driver.implicitly_wait(10)
     # 웹 페이지 로딩
     driver.get(channel_url)
 

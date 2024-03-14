@@ -2,53 +2,71 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import threading
 import ch_finder  # ch_finder.py 모듈을 import 합니다.
+import list_maker # list_make.py 모듈을 import 합니다.
 
 # YouTube API 키를 여기에 입력하세요.
-API_KEY = 'API'
+API_KEY = 'AIzaSyCs6dodjKFWh2smPMUs9FkiGPU0FxyUR44'
+
+# 전역 변수로 검색된 채널의 이름과 ID를 저장
+channel_name = ""
+channel_id = ""
 
 def on_entry_click(event):
-    """Entry 위젯 클릭 시 실행되는 함수"""
+    global channel_name, channel_id
     if entry_artist_name.get() == '가수/아티스트 입력':
-        entry_artist_name.delete(0, "end")  # 텍스트 삭제
-        entry_artist_name.insert(0, '')  # 빈 텍스트 삽입
+        entry_artist_name.delete(0, "end")
+        entry_artist_name.insert(0, '')
         entry_artist_name.config(fg='black')
+    channel_name = ""
+    channel_id = ""
 
 def on_focusout(event):
-    """Entry 위젯이 포커스를 잃었을 때 실행되는 함수"""
     if entry_artist_name.get() == '':
         entry_artist_name.insert(0, '가수/아티스트 입력')
         entry_artist_name.config(fg='grey')
 
-def async_download(artist_name):
+def async_search_channel(artist_name):
+    global channel_name, channel_id
     youtube = ch_finder.initialize_youtube_api(API_KEY)
-    channel_id = ch_finder.get_channel_id(youtube, artist_name)
+    channel_info = ch_finder.get_channel_id(youtube, artist_name)
     
-    if channel_id:
-        # 여기서는 채널 ID를 표시하기만 합니다. 실제 다운로드 로직이 필요한 경우 추가해야 합니다.
-        text = f"찾은 채널 ID: {channel_id}"
+    if channel_info:
+        channel_id = channel_info
+        # 검색된 채널의 이름도 얻기 위해 추가 정보 요청
+        channel_details = youtube.channels().list(id=channel_id, part='snippet').execute()
+        channel_name = channel_details['items'][0]['snippet']['title']
+        text = f"찾은 채널: {channel_name}"
     else:
         text = "채널을 찾을 수 없습니다."
+        channel_id = ""
     
-    # GUI 요소에 접근하기 위해 메인 스레드에서 실행되어야 합니다.
     label_status.config(text=text)
     entry_artist_name.config(state=tk.NORMAL)
-    button_download.config(state=tk.NORMAL)
+    button_search.config(state=tk.NORMAL)
 
-def download():
+def search_channel():
     artist_name = entry_artist_name.get()
     if not artist_name or artist_name == "가수/아티스트 입력":
         messagebox.showinfo("알림", "가수/아티스트 이름을 입력해주세요.")
         return
     
     entry_artist_name.config(state=tk.DISABLED)
-    button_download.config(state=tk.DISABLED)
+    button_search.config(state=tk.DISABLED)
     label_status.config(text="검색 중...")
     
-    # 비동기적으로 YouTube 채널 ID를 검색합니다.
-    threading.Thread(target=async_download, args=(artist_name,)).start()
+    threading.Thread(target=async_search_channel, args=(artist_name,)).start()
+
+def download_videos():
+    if not channel_id:
+        messagebox.showinfo("알림", "먼저 채널을 검색해주세요.")
+        return
+    # 여기에 채널 비디오 다운로드 로직 구현
+    playlist_list = list_maker.get_lists(channel_id)
+    print(playlist_list)
+    messagebox.showinfo("알림", f"'{channel_name}' 채널의 비디오를 다운로드합니다.")
 
 def open_folder():
-    pass  # 폴더 열기 로직
+    pass
 
 def set_download_path():
     folder_selected = filedialog.askdirectory()
@@ -69,7 +87,10 @@ entry_artist_name.bind('<FocusOut>', on_focusout)
 label_status = tk.Label(root, text="")
 label_status.pack(pady=10)
 
-button_download = tk.Button(root, text="채널 검색", command=download)
+button_search = tk.Button(root, text="채널 검색", command=search_channel)
+button_search.pack(pady=5)
+
+button_download = tk.Button(root, text="비디오 다운로드", command=download_videos)
 button_download.pack(pady=5)
 
 button_open = tk.Button(root, text="열기", command=open_folder)
